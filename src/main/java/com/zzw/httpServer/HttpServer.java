@@ -134,7 +134,7 @@ public class HttpServer {
         }
 
 
-        //验证请求路径 如果是默认路径 也就是 '/'则去index页面 否则 去请求的对应页面
+        //验证请求路径 如果是默认路径 也就是'/'则去index页面 否则 去请求的对应页面
         requestURL = requestURL.equals("/")? "index.html" :requestURL.substring(1);
 
         //去服务器内部的resource文件夹 找 对应文件名的文件
