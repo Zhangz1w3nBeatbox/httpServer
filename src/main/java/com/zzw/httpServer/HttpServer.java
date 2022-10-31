@@ -1,5 +1,6 @@
 package com.zzw.httpServer;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -52,9 +53,41 @@ public class HttpServer {
     public void responseToClient(Socket clientSocket) throws IOException, InterruptedException {
 
         //模拟处理 耗时
-        Thread.sleep(3000);
+        //Thread.sleep(3000);
 
+        //获取输出流
         OutputStream outputStream = clientSocket.getOutputStream();
+        //获取输入流
+        InputStream inputStream = clientSocket.getInputStream();
+
+
+
+        if(inputStream.available()==0){
+            //响应头信息
+
+            //状态行 版本号 状态码
+            outputStream.write("HTTP/1.0 200 OK\r\n".getBytes());
+
+            //首部行
+            outputStream.write("Server:HttpServer/1.0\r\n".getBytes());
+            outputStream.write(("Date:"+(new Date()).toString()+"\r\n").getBytes());
+            outputStream.write("Content-Type: text/html; charset=UTF-8\r\n".getBytes());
+
+
+            outputStream.write("\r\n".getBytes());
+
+            //响应-实体体
+            outputStream.write("<h1>OK</h1>".getBytes());
+
+
+            outputStream.flush();
+            outputStream.close();
+
+            return;
+        }
+
+        //处理无效请求
+        System.out.println("客户端的请求数据长度:"+inputStream.available());
 
         //响应头信息
 
