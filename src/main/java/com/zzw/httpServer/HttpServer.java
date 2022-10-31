@@ -4,6 +4,8 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Date;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class HttpServer {
 
@@ -13,6 +15,10 @@ public class HttpServer {
         ServerSocket serverSocket = new ServerSocket(port);
         System.out.println("服务器已经启动 正在监听"+port+"端口");
 
+        //使用线程池 处理并发的请求
+
+        ExecutorService threadPool = Executors.newFixedThreadPool(50);
+
         while(true){
 
             Socket clientSocket = serverSocket.accept();
@@ -21,7 +27,18 @@ public class HttpServer {
 
             if(clientSocket!=null&&!clientSocket.isClosed()){
 
-                responseToClient(clientSocket);
+                //构建任务
+               Runnable work =()->{
+                   try {
+                       responseToClient(clientSocket);
+                   } catch (IOException e) {
+                       throw new RuntimeException(e);
+                   } catch (InterruptedException e) {
+                       throw new RuntimeException(e);
+                   }
+               };
+                //提价任务
+               threadPool.submit(work);
 
             }
 
