@@ -49,7 +49,7 @@ public class HttpServer {
     }
 
     //封装response对象
-    public void toResponse(OutputStream outputStream,int resCode,String resDes,String contentType,String resData) throws IOException {
+    public void toResponse(OutputStream outputStream,int resCode,String resDes,String contentType,byte[] resData) throws IOException {
         //响应头信息
 
         //状态行 版本号 状态码
@@ -64,7 +64,7 @@ public class HttpServer {
         outputStream.write("\r\n".getBytes());
 
         //响应-实体体
-        outputStream.write(resData.getBytes());
+        outputStream.write(resData);
 
 
         outputStream.flush();
@@ -78,7 +78,7 @@ public class HttpServer {
         //获取输入流
         InputStream inputStream = clientSocket.getInputStream();
         if(inputStream.available()==0){
-            toResponse(outputStream,200,"OK","text/html","<h1>OK</h1>");
+            toResponse(outputStream,200,"OK","text/html","<h1>OK</h1>".getBytes());
             return;
         }
     }
@@ -114,9 +114,25 @@ public class HttpServer {
 
         //如果请求的路径是其他静态路径则进行处理
         if(requestURL.equals("/favicon.ico")){
-            toResponse(outputStream,200,"OK","text/html","favicon.ico");
+            toResponse(outputStream,200,"OK","text/html","favicon.ico".getBytes());
             return;
         }
+
+        String contentType = null;
+
+        //判断文件的格式 -进行文件类型的转换
+        if(requestURL.indexOf("htm")!=-1||requestURL.equals("/")){
+            contentType = "text/html";
+        }else if(requestURL.indexOf("jpg")!=-1||requestURL.indexOf("jpeg")!=-1){
+            contentType = "image/jpeg";
+        }else if(requestURL.indexOf("gif")!=-1){
+            contentType = "image/gif";
+        }else if(requestURL.indexOf("png")!=-1){
+            contentType = "image/png";
+        }else {
+            contentType = "application/octet-stream";
+        }
+
 
         //验证请求路径 如果是默认路径 也就是 '/'则去index页面 否则 去请求的对应页面
         requestURL = requestURL.equals("/")? "index.html" :requestURL.substring(1);
@@ -126,26 +142,22 @@ public class HttpServer {
 
         //如果文件不存在 返回404
         if(resourcePath==null){
-            toResponse(outputStream,404,"Not Found","text/html","<h1>404 File Not Found!</h1>");
+            toResponse(outputStream,404,"Not Found","text/html","<h1>404 File Not Found!</h1>".getBytes());
             return;
         }
 
         //找得到就 去用bufferInputStream读出来
-        byte[] temp = new byte[2048];
-        int len = 0;//记录每次读取的有效字节个数
+        byte[] responseDate = new byte[10000000];
 
         //然后把读到的内容放到responseDate中
-        String responseDate ="";
-
         try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(resourcePath.getPath()));){
-            while ((len = bis.read(temp))!=-1){
-                responseDate += new String(temp, 0, len);
-            }
-            bis.read(temp);
+            while (bis.read(responseDate)!=-1);
+            bis.read(responseDate);
         }
 
-        //最后返
-        toResponse(outputStream,200,"OK","text/html",responseDate);
+
+        //最后返回
+        toResponse(outputStream,200,"OK",contentType,responseDate);
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
