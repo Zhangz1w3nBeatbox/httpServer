@@ -48,6 +48,28 @@ public class HttpServer {
 
     }
 
+    //封装response对象
+    public void toResponse(OutputStream outputStream,int resCode,String resDes,String contentType,String resData) throws IOException {
+        //响应头信息
+
+        //状态行 版本号 状态码
+        outputStream.write(("HTTP/1.1 "+resCode+" "+resDes+"\r\n").getBytes());
+
+        //首部行
+        outputStream.write("Server:HttpServer/1.1\r\n".getBytes());
+        outputStream.write(("Date:"+(new Date())+"\r\n").getBytes());
+        outputStream.write(("Content-Type: "+contentType+"; charset=UTF-8\r\n").getBytes());
+
+
+        outputStream.write("\r\n".getBytes());
+
+        //响应-实体体
+        outputStream.write(resData.getBytes());
+
+
+        outputStream.flush();
+        outputStream.close();
+    }
 
     //响应客户端的请求
     public void responseToClient(Socket clientSocket) throws IOException, InterruptedException {
@@ -61,53 +83,15 @@ public class HttpServer {
         InputStream inputStream = clientSocket.getInputStream();
 
 
-
         if(inputStream.available()==0){
-            //响应头信息
-
-            //状态行 版本号 状态码
-            outputStream.write("HTTP/1.0 200 OK\r\n".getBytes());
-
-            //首部行
-            outputStream.write("Server:HttpServer/1.0\r\n".getBytes());
-            outputStream.write(("Date:"+(new Date()).toString()+"\r\n").getBytes());
-            outputStream.write("Content-Type: text/html; charset=UTF-8\r\n".getBytes());
-
-
-            outputStream.write("\r\n".getBytes());
-
-            //响应-实体体
-            outputStream.write("<h1>OK</h1>".getBytes());
-
-
-            outputStream.flush();
-            outputStream.close();
-
+            toResponse(outputStream,200,"OK","text/html","<h1>OK</h1>");
             return;
         }
 
         //处理无效请求
         System.out.println("客户端的请求数据长度:"+inputStream.available());
 
-        //响应头信息
-
-        //状态行 版本号 状态码
-        outputStream.write("HTTP/1.0 200 OK\r\n".getBytes());
-
-        //首部行
-        outputStream.write("Server:HttpServer/1.0\r\n".getBytes());
-        outputStream.write(("Date:"+(new Date()).toString()+"\r\n").getBytes());
-        outputStream.write("Content-Type: text/html; charset=UTF-8\r\n".getBytes());
-
-
-        outputStream.write("\r\n".getBytes());
-
-        //响应-实体体
-        outputStream.write("<h1>Welcome Beatboxer!</h1>".getBytes());
-
-
-        outputStream.flush();
-        outputStream.close();
+        toResponse(outputStream,200,"OK","text/html","<h1>主人欢迎回来!</h1>");
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
