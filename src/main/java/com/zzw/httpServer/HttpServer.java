@@ -135,7 +135,7 @@ public class HttpServer {
         //获取所有请求文档
         String s = new String(readBuffer);
 
-        String[] lineArray  = s.split("\r\n");
+        String[] lineArray =s.split("\r\n");
 
         //获取请求行
         String requestLine = lineArray[0];
