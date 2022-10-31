@@ -1,7 +1,9 @@
 package com.zzw.httpServer;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Date;
 
 public class HttpServer {
 
@@ -14,6 +16,20 @@ public class HttpServer {
         while(true){
             Socket clientSocket = serverSocket.accept();
             System.out.println("接收到客户端请求:"+clientSocket.getPort());
+
+            if(clientSocket!=null&&!clientSocket.isClosed()){
+
+                OutputStream outputStream = clientSocket.getOutputStream();
+                outputStream.write("HTTP/1.1 200 OK\r\n".getBytes());
+                outputStream.write("Server:HttpServer/1.0\r\n".getBytes());
+                outputStream.write(("Date:"+(new Date()).toString()+"\r\n").getBytes());
+                outputStream.write("Content-Type: text/html; charset=UTF-8\r\n".getBytes());
+                outputStream.write("\r\n".getBytes());
+                outputStream.write("<h1>Welcome Beatboxer!</h1>".getBytes());
+                outputStream.flush();
+                outputStream.close();
+            }
+
         }
     }
 
