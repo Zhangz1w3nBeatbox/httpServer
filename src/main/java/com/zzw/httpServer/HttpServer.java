@@ -1,9 +1,11 @@
 package com.zzw.httpServer;
+import com.zzw.httpServer.Entity.HeaderLine;
+import com.zzw.httpServer.Entity.Response;
+import com.zzw.httpServer.Entity.StatusLine;
+
 import java.io.*;
 import java.lang.String;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.URL;
+import java.net.*;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,9 +40,11 @@ public class HttpServer {
     }
 
     public HttpServer(int port) throws IOException, InterruptedException {
+
         if(port<1||port>65535) throw new MyRuntimeException("端口异常!");
 
         ServerSocket serverSocket = new ServerSocket(port);
+   
         System.out.println("服务器已经启动 正在监听"+port+"端口");
 
         //使用线程池 处理并发的请求
@@ -76,23 +80,21 @@ public class HttpServer {
     }
 
     //封装response对象
-    public void toResponse(OutputStream outputStream,int resCode,String resDes,String contentType,byte[] resData) throws IOException {
+    public void toResponse(OutputStream outputStream,Response response) throws IOException {
         //响应头信息
 
-        //状态行 版本号 状态码
-        outputStream.write(("HTTP/1.1 "+resCode+" "+resDes+"\r\n").getBytes());
+        //
+        String statusLined = response.getStatusLine().toString();
+        outputStream.write(statusLined.getBytes());
 
-        //首部行
-        outputStream.write("Server:HttpServer/1.1\r\n".getBytes());
-        outputStream.write(("Date:"+(new Date())+"\r\n").getBytes());
-        outputStream.write(("Content-Type: "+contentType+"; charset=UTF-8\r\n").getBytes());
+        String headLine  = response.getHeaderLine().toString();
+        outputStream.write(headLine.getBytes());
 
-
+        //换行
         outputStream.write("\r\n".getBytes());
 
         //响应-实体体
-        outputStream.write(resData);
-
+        outputStream.write(response.getEntityBody());
 
         outputStream.flush();
         outputStream.close();
@@ -104,8 +106,13 @@ public class HttpServer {
         OutputStream outputStream = clientSocket.getOutputStream();
         //获取输入流
         InputStream inputStream = clientSocket.getInputStream();
+
         if(inputStream.available()==0){
-            toResponse(outputStream,200,"OK","text/html","<h1>OK</h1>".getBytes());
+            Response response = new Response();
+            response.setStatusLine(new StatusLine("HTTP/1.1",200,"OK"));
+            response.setHeaderLine(new HeaderLine("HttpServer/1.1",new Date().toString(),"text/html"));
+            response.setEntityBody("<h1>OK</h1>".getBytes());
+            toResponse(outputStream,response);
             return;
         }
     }
@@ -159,7 +166,13 @@ public class HttpServer {
             servletName = servletName.trim();
 
             if(servletName.equals("")||servletName==null){
-                toResponse(outputStream,404,"Not Found","text/html","<h1>Not Found</h1>".getBytes());
+//                Response response = new Response();
+//                response.setStatusLine(new StatusLine("HTTP/1.1",404,"Not Found"));
+//                response.setHeaderLine(new HeaderLine("HttpServer/1.1",new Date().toString(),"text/html"));
+//                response.setEntityBody("<h1>Not Found</h1>".getBytes());
+//                toResponse(outputStream,response);
+                transferResponse(outputStream,"HTTP/1.1",404,"Not Found","text/html","<h1>Not Found</h1>".getBytes());
+
                 return;
             }
 
@@ -171,12 +184,23 @@ public class HttpServer {
                 Servlet servlet = getServlet(servletName);//通过servletName 反射得到 servlet 并且存入map
 
                 String content = servlet.doRequest(requestURL,s);// 通过 servlet的doRequest方法 获得content
-
-                toResponse(outputStream,200,"OK","text/html",content.getBytes());
+//                Response response = new Response();
+//                response.setStatusLine(new StatusLine("HTTP/1.1",200,"OK"));
+//                response.setHeaderLine(new HeaderLine("HttpServer/1.1",new Date().toString(),"text/html"));
+//                response.setEntityBody(content.getBytes());
+//                toResponse(outputStream,response);
+                transferResponse(outputStream,"HTTP/1.1",200,"OK","text/html",content.getBytes());
 
             } catch (Exception e) {
                 e.printStackTrace();
-                toResponse(outputStream,404,"Not Found","text/html","<h1>Not Found</h1>".getBytes());
+//                Response response = new Response();
+//                response.setStatusLine(new StatusLine("HTTP/1.1",404,"Not Found"));
+//                response.setHeaderLine(new HeaderLine("HttpServer/1.1",new Date().toString(),"text/html"));
+//                response.setEntityBody("<h1>Not Found</h1>".getBytes());
+//                toResponse(outputStream,response);
+
+                transferResponse(outputStream,"HTTP/1.1",404,"Not Found","text/html","<h1>Not Found</h1>".getBytes());
+
                 return;
             } finally {
                 outputStream.flush();
@@ -190,7 +214,14 @@ public class HttpServer {
 
             //如果请求的路径是其他静态路径则进行处理
             if(requestURL.equals("/favicon.ico")){
-                toResponse(outputStream,200,"OK","text/html","favicon.ico".getBytes());
+//                Response response = new Response();
+//                response.setStatusLine(new StatusLine("HTTP/1.1",200,"OK"));
+//                response.setHeaderLine(new HeaderLine("HttpServer/1.1",new Date().toString(),"text/html"));
+//                response.setEntityBody("favicon.ico".getBytes());
+//                toResponse(outputStream,response);
+
+                transferResponse(outputStream,"HTTP/1.1",200,"OK","text/html","favicon.ico".getBytes());
+
                 return;
             }
 
@@ -218,7 +249,10 @@ public class HttpServer {
 
             //如果文件不存在 返回404
             if(resourcePath==null){
-                toResponse(outputStream,404,"Not Found","text/html","<h1>404 File Not Found!</h1>".getBytes());
+
+                transferResponse(outputStream,"HTTP/1.1",404,"Not Found","text/html","<h1>Not Found</h1>".getBytes());
+
+                //toResponse(outputStream,404,"Not Found","text/html","<h1>404 File Not Found!</h1>".getBytes());
                 return;
             }
 
@@ -230,13 +264,25 @@ public class HttpServer {
                 while (bis.read(responseDate)!=-1);
                 bis.read(responseDate);
             }
+//            Response response = new Response();
+//            response.setStatusLine(new StatusLine("HTTP/1.1",200,"OK"));
+//            response.setHeaderLine(new HeaderLine("HttpServer/1.1",new Date().toString(),contentType));
+//            response.setEntityBody(responseDate);
+//            toResponse(outputStream,response);
 
+            transferResponse(outputStream,"HTTP/1.1",200,"OK",contentType,responseDate);
 
-            //最后返回
-            toResponse(outputStream,200,"OK",contentType,responseDate);
         }
 
 
+    }
+
+    public void transferResponse(OutputStream outputStream,String httpVersion,int code,String des,String contentType,byte[] responseDate) throws IOException {
+        Response response = new Response();
+        response.setStatusLine(new StatusLine("HTTP/1.1",200,"OK"));
+        response.setHeaderLine(new HeaderLine("HttpServer/1.1",new Date().toString(),contentType));
+        response.setEntityBody(responseDate);
+        toResponse(outputStream,response);
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
