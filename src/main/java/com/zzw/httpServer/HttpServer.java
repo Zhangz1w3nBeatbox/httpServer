@@ -1,6 +1,4 @@
 package com.zzw.httpServer;
-import com.sun.xml.internal.ws.util.StringUtils;
-
 import java.io.*;
 import java.lang.String;
 import java.net.ServerSocket;
@@ -19,7 +17,7 @@ public class HttpServer {
 
     //获取servlet方法
     private synchronized Servlet getServlet(String servletName) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
-        // 把 login 变为 包的名字 加 LoginServlet类
+        // 把 login 变为  LoginServlet类  通过反射 创建对象
 
         servletName = "com.zzw.httpServer."+servletName.substring(0,1).toUpperCase()+servletName.substring(1)+"Servlet";
 
@@ -169,9 +167,10 @@ public class HttpServer {
 
             //通过 servletName 去 Map中获取 对应的 servletClass类
             try {
-                Servlet servlet = getServlet(servletName);
 
-                String content = servlet.doRequest(requestURL,s);
+                Servlet servlet = getServlet(servletName);//通过servletName 反射得到 servlet 并且存入map
+
+                String content = servlet.doRequest(requestURL,s);// 通过 servlet的doRequest方法 获得content
 
                 toResponse(outputStream,200,"OK","text/html",content.getBytes());
 
@@ -179,60 +178,65 @@ public class HttpServer {
                 e.printStackTrace();
                 toResponse(outputStream,404,"Not Found","text/html","<h1>Not Found</h1>".getBytes());
                 return;
+            } finally {
+                outputStream.flush();
+                outputStream.close();
             }
 
 
-        }
-
-
-        //静态资源处理方法
-
-        //如果请求的路径是其他静态路径则进行处理
-        if(requestURL.equals("/favicon.ico")){
-            toResponse(outputStream,200,"OK","text/html","favicon.ico".getBytes());
-            return;
-        }
-
-        String contentType = null;
-
-        //判断文件的格式 -进行文件类型的转换
-        if(requestURL.indexOf("htm")!=-1||requestURL.equals("/")){
-            contentType = "text/html";
-        }else if(requestURL.indexOf("jpg")!=-1||requestURL.indexOf("jpeg")!=-1){
-            contentType = "image/jpeg";
-        }else if(requestURL.indexOf("gif")!=-1){
-            contentType = "image/gif";
-        }else if(requestURL.indexOf("png")!=-1){
-            contentType = "image/png";
         }else {
-            contentType = "application/octet-stream";
+
+            //静态资源处理方法
+
+            //如果请求的路径是其他静态路径则进行处理
+            if(requestURL.equals("/favicon.ico")){
+                toResponse(outputStream,200,"OK","text/html","favicon.ico".getBytes());
+                return;
+            }
+
+            String contentType = null;
+
+            //判断文件的格式 -进行文件类型的转换
+            if(requestURL.indexOf("htm")!=-1||requestURL.equals("/")){
+                contentType = "text/html";
+            }else if(requestURL.indexOf("jpg")!=-1||requestURL.indexOf("jpeg")!=-1){
+                contentType = "image/jpeg";
+            }else if(requestURL.indexOf("gif")!=-1){
+                contentType = "image/gif";
+            }else if(requestURL.indexOf("png")!=-1){
+                contentType = "image/png";
+            }else {
+                contentType = "application/octet-stream";
+            }
+
+
+            //验证请求路径 如果是默认路径 也就是'/'则去index页面 否则 去请求的对应页面
+            requestURL = requestURL.equals("/")? "index.html" :requestURL.substring(1);
+
+            //去服务器内部的resource文件夹 找 对应文件名的文件
+            URL resourcePath = getClass().getClassLoader().getResource(requestURL);
+
+            //如果文件不存在 返回404
+            if(resourcePath==null){
+                toResponse(outputStream,404,"Not Found","text/html","<h1>404 File Not Found!</h1>".getBytes());
+                return;
+            }
+
+            //找得到就 去用bufferInputStream读出来
+            byte[] responseDate = new byte[10000000];
+
+            //然后把读到的内容放到responseDate中
+            try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(resourcePath.getPath()));){
+                while (bis.read(responseDate)!=-1);
+                bis.read(responseDate);
+            }
+
+
+            //最后返回
+            toResponse(outputStream,200,"OK",contentType,responseDate);
         }
 
 
-        //验证请求路径 如果是默认路径 也就是'/'则去index页面 否则 去请求的对应页面
-        requestURL = requestURL.equals("/")? "index.html" :requestURL.substring(1);
-
-        //去服务器内部的resource文件夹 找 对应文件名的文件
-        URL resourcePath = getClass().getClassLoader().getResource(requestURL);
-
-        //如果文件不存在 返回404
-        if(resourcePath==null){
-            toResponse(outputStream,404,"Not Found","text/html","<h1>404 File Not Found!</h1>".getBytes());
-            return;
-        }
-
-        //找得到就 去用bufferInputStream读出来
-        byte[] responseDate = new byte[10000000];
-
-        //然后把读到的内容放到responseDate中
-        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(resourcePath.getPath()));){
-            while (bis.read(responseDate)!=-1);
-            bis.read(responseDate);
-        }
-
-
-        //最后返回
-        toResponse(outputStream,200,"OK",contentType,responseDate);
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
